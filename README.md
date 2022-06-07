@@ -1,6 +1,13 @@
 # ESP32 USB Host HID Brigde
 
-An experimental library for bridging USB-OTG Host stack on Espressif ESP32 (S Series). This project is based on sample code on [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html). Developed for Arduino framework on espressif32@4.4.0 on PlatformIO.
+An experimental library for bridging USB-OTG Host stack on Espressif ESP32 (S Series). This project is based on sample code on [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html). Developed for Arduino framework on espressif32 (4.4.0) on PlatformIO.
+
+---
+## 🙈 TL;DR;
+This [🎥 Video](https://imgur.com/pYu87BP) demo how it works in [🕹📡 simpleTx_esp32](https://github.com/badjeff/simpleTx_esp32)
+
+---
+
 
 ## What does this library do?
 - Create daemon and driver tasks like the official doc said
