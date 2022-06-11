@@ -57,8 +57,7 @@ void hid_report_cb(usb_transfer_t *transfer) {
     unsigned char *const data = (unsigned char *const)(transfer->data_buffer);
     // print data_buffer in binary format
     for (int i=0; i<transfer->actual_num_bytes && i<11; i++) { // prints first 11 bytes only!!!
-        for (int b = 8; b != -1; b--)
-            Serial.printf("%d", (data[i] & (1 << b)) >> b );
+        for (int b=0; b<8; b++) Serial.printf("%d", (data[i] & (1 << b)) >> b );
         Serial.printf(" ");
     }
     Serial.printf("\n");
