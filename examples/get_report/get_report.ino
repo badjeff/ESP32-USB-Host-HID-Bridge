@@ -107,13 +107,13 @@ void hid_report_cb(usb_transfer_t *transfer) {
     //
     uint8_t *data = (uint8_t *)(transfer->data_buffer);
 
-    for (int i=0; i<transfer->actual_num_bytes && i<11; i++) {
-        // Serial.printf("%d ", data[i]);
-        // Serial.printf("%02X ", data[i]);
-        for (int b=0; b<8; b++) Serial.printf("%d", (data[i] & (1 << b)) >> b );
-        Serial.printf(" ");
-    }
-    Serial.printf("\n");
+    // for (int i=0; i<transfer->actual_num_bytes && i<11; i++) {
+    //     // Serial.printf("%d ", data[i]);
+    //     // Serial.printf("%02X ", data[i]);
+    //     for (int b=0; b<8; b++) Serial.printf("%d", (data[i] & (1 << b)) >> b );
+    //     Serial.printf(" ");
+    // }
+    // Serial.printf("\n");
 
     // usb_input_ch[0] = data[0];
     // usb_input_ch[1] = data[1];
@@ -122,13 +122,12 @@ void hid_report_cb(usb_transfer_t *transfer) {
     // for (int i=0; i<4; i++) Serial.printf("%d ", usb_input_ch[i]);
     // Serial.printf("\n");
 
-
-    // usb_input_ch[0] = get_offset_bits(data, 8,  8);
-    // usb_input_ch[1] = get_offset_bits(data, 16, 8);
-    // usb_input_ch[2] = get_offset_bits(data, 24, 8);
-    // usb_input_ch[3] = get_offset_bits(data, 32, 8);
-    // for (int i=0; i<4; i++) Serial.printf("%d ", usb_input_ch[i]);
-    // Serial.printf("\n");
+    usb_input_ch[0] = get_offset_bits(data, 8,  8);
+    usb_input_ch[1] = get_offset_bits(data, 16, 8);
+    usb_input_ch[2] = get_offset_bits(data, 24, 8);
+    usb_input_ch[3] = get_offset_bits(data, 32, 8);
+    for (int i=0; i<4; i++) Serial.printf("%d ", usb_input_ch[i]);
+    Serial.printf("\n");
 }
 
 uint32_t get_offset_bits(uint8_t *data, uint32_t offset, uint32_t count) {

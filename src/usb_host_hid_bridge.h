@@ -58,6 +58,7 @@ public:
     void begin();
     void end();
     bool hostInstalled;
+    void* driver_ptr;
     void (*onConfigDescriptorReceived)(const usb_config_desc_t *config_desc);
     void (*onDeviceInfoReceived)(usb_device_info_t *dev_info);
     void (*onHidReportDescriptorReceived)(usb_transfer_t *transfer);

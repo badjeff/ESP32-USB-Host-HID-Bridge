@@ -25,9 +25,9 @@
 #define ACTION_GET_STR_DESC         0x10
 #define ACTION_CLOSE_DEV            0x20
 #define ACTION_EXIT                 0x40
-#define ACTION_CLAIM_INTF           0x0100
-#define ACTION_TRANSFER_CONTROL     0x0200
-#define ACTION_TRANSFER             0x0400
+#define ACTION_CLAIM_INTF                       0x0100
+#define ACTION_TRANSFER_CTRL_GET_REPORT_DESC    0x0200
+#define ACTION_TRANSFER_INTR_GET_REPORT         0x0400
 
 typedef struct {
     usb_host_client_handle_t client_hdl;
@@ -112,12 +112,13 @@ static void action_get_dev_desc(class_driver_t *driver_obj)
     driver_obj->actions |= ACTION_GET_CONFIG_DESC;
 }
 
-static void action_get_config_desc(class_driver_t *driver_obj, UsbHostHidBridge *bdg)
+static void action_get_config_desc(class_driver_t *driver_obj)
 {
     assert(driver_obj->dev_hdl != NULL);
     ESP_LOGI(TAG_CLASS, "Getting config descriptor");
     const usb_config_desc_t *config_desc;
     ESP_ERROR_CHECK(usb_host_get_active_config_descriptor(driver_obj->dev_hdl, &config_desc));
+    UsbHostHidBridge *bdg = (UsbHostHidBridge *)driver_obj->bdg;
     if (bdg->onConfigDescriptorReceived != NULL) {
         bdg->onConfigDescriptorReceived(config_desc);
     }
@@ -126,11 +127,12 @@ static void action_get_config_desc(class_driver_t *driver_obj, UsbHostHidBridge 
     driver_obj->actions |= ACTION_GET_STR_DESC;
 }
 
-static void action_get_str_desc(class_driver_t *driver_obj, UsbHostHidBridge *bdg)
+static void action_get_str_desc(class_driver_t *driver_obj)
 {
     assert(driver_obj->dev_hdl != NULL);
     usb_device_info_t dev_info;
     ESP_ERROR_CHECK(usb_host_device_info(driver_obj->dev_hdl, &dev_info));
+    UsbHostHidBridge *bdg = (UsbHostHidBridge *)driver_obj->bdg;
     if (bdg->onDeviceInfoReceived != NULL) {
         bdg->onDeviceInfoReceived(&dev_info);
     }
@@ -139,7 +141,7 @@ static void action_get_str_desc(class_driver_t *driver_obj, UsbHostHidBridge *bd
     driver_obj->actions |= ACTION_CLAIM_INTF;
 }
 
-static void action_claim_interface(class_driver_t *driver_obj, UsbHostHidBridge *bdg)
+static void action_claim_interface(class_driver_t *driver_obj)
 {
     assert(driver_obj->dev_hdl != NULL);
     ESP_LOGI(TAG_CLASS, "Getting config descriptor");
@@ -195,7 +197,7 @@ static void action_claim_interface(class_driver_t *driver_obj, UsbHostHidBridge 
     driver_obj->actions &= ~ACTION_CLAIM_INTF;
     if (hidIntfClaimed)
     {
-        driver_obj->actions |= ACTION_TRANSFER_CONTROL;
+        driver_obj->actions |= ACTION_TRANSFER_CTRL_GET_REPORT_DESC;
     }
 }
 
@@ -208,15 +210,15 @@ static void transfer_control_get_report_descriptor_cb(usb_transfer_t *transfer)
         ESP_LOGW("", "Transfer control failed - Status %d \n", transfer->status);
     }
     if (transfer->status == USB_TRANSFER_STATUS_COMPLETED) {
-        UsbHostHidBridge *bdg = driver_obj->bdg;
+        UsbHostHidBridge *bdg = (UsbHostHidBridge *)driver_obj->bdg;
         if (transfer->actual_num_bytes > 0 && bdg->onHidReportDescriptorReceived != NULL) {
             bdg->onHidReportDescriptorReceived(transfer);
         }
-        driver_obj->actions |= ACTION_TRANSFER;
+        driver_obj->actions |= ACTION_TRANSFER_INTR_GET_REPORT;
     }
 }
 
-static void action_transfer_control_get_report_descriptor(class_driver_t *driver_obj, UsbHostHidBridge *bdg)
+static void action_transfer_control_get_report_descriptor(class_driver_t *driver_obj)
 {
     assert(driver_obj->dev_hdl != NULL);
     static uint16_t mps = driver_obj->bMaxPacketSize0;
@@ -249,13 +251,12 @@ static void action_transfer_control_get_report_descriptor(class_driver_t *driver
     transfer->context = (void *)driver_obj;
     transfer->timeout_ms = 1000;
 
-    driver_obj->bdg = bdg;
     esp_err_t result = usb_host_transfer_submit_control(driver_obj->client_hdl, transfer);
     if (result != ESP_OK) {
         ESP_LOGW("", "attempting %s\n", esp_err_to_name(result));
     } else {
         // event queued, transfer_cb2 must be called eventually, clean actions flag
-        driver_obj->actions &= ~ACTION_TRANSFER_CONTROL;
+        driver_obj->actions &= ~ACTION_TRANSFER_CTRL_GET_REPORT_DESC;
     }
 }
 
@@ -268,15 +269,15 @@ static void action_interrupt_get_report_cb(usb_transfer_t *transfer)
         ESP_LOGW("", "Transfer failed - Status %d \n", transfer->status);
     }
     if (transfer->status == USB_TRANSFER_STATUS_COMPLETED) {
-        UsbHostHidBridge *bdg = driver_obj->bdg;
+        UsbHostHidBridge *bdg = (UsbHostHidBridge *)driver_obj->bdg;
         if (transfer->actual_num_bytes > 0 && bdg->onReportReceived != NULL) {
             bdg->onReportReceived(transfer);
         }
     }
-    driver_obj->actions |= ACTION_TRANSFER;
+    driver_obj->actions |= ACTION_TRANSFER_INTR_GET_REPORT;
 }
 
-static void action_interrupt_get_report(class_driver_t *driver_obj, UsbHostHidBridge *bdg)
+static void action_interrupt_get_report(class_driver_t *driver_obj)
 {
     assert(driver_obj->dev_hdl != NULL);
     static uint16_t mps = driver_obj->ep_in->wMaxPacketSize;
@@ -295,13 +296,12 @@ static void action_interrupt_get_report(class_driver_t *driver_obj, UsbHostHidBr
     transfer->context = (void *)driver_obj;
     transfer->timeout_ms = 1000;
 
-    driver_obj->bdg = bdg;
     esp_err_t result = usb_host_transfer_submit(transfer);
     if (result != ESP_OK) {
         ESP_LOGW("", "attempting %s\n", esp_err_to_name(result));
     } else {
         // event queued, transfer_cb2 must be called eventually, clean actions flag
-        driver_obj->actions &= ~ACTION_TRANSFER;
+        driver_obj->actions &= ~ACTION_TRANSFER_INTR_GET_REPORT;
     }
 }
 
@@ -345,7 +345,7 @@ static void aciton_close_dev(class_driver_t *driver_obj)
     driver_obj->dev_addr = 0;
     //We need to exit the event handler loop
     driver_obj->actions &= ~ACTION_CLOSE_DEV;
-    driver_obj->actions &= ~ACTION_TRANSFER;
+    driver_obj->actions &= ~ACTION_TRANSFER_INTR_GET_REPORT;
     driver_obj->actions |= ACTION_EXIT;
 }
 
@@ -369,6 +369,8 @@ static void usb_class_driver_task(void *pvParameters)
         },
     };
     ESP_ERROR_CHECK(usb_host_client_register(&client_config, &driver_obj.client_hdl));
+    driver_obj.bdg = bdg;
+    bdg->driver_ptr = &driver_obj;
 
     while (1) {
         if (driver_obj.actions == 0) {
@@ -384,19 +386,19 @@ static void usb_class_driver_task(void *pvParameters)
                 action_get_dev_desc(&driver_obj);
             }
             if (driver_obj.actions & ACTION_GET_CONFIG_DESC) {
-                action_get_config_desc(&driver_obj, bdg);
+                action_get_config_desc(&driver_obj);
             }
             if (driver_obj.actions & ACTION_GET_STR_DESC) {
-                action_get_str_desc(&driver_obj, bdg);
+                action_get_str_desc(&driver_obj);
             }
             if (driver_obj.actions & ACTION_CLAIM_INTF) {
-                action_claim_interface(&driver_obj, bdg);
+                action_claim_interface(&driver_obj);
             }
-            if (driver_obj.actions & ACTION_TRANSFER_CONTROL) {
-                action_transfer_control_get_report_descriptor(&driver_obj, bdg);
+            if (driver_obj.actions & ACTION_TRANSFER_CTRL_GET_REPORT_DESC) {
+                action_transfer_control_get_report_descriptor(&driver_obj);
             }
-            if (driver_obj.actions & ACTION_TRANSFER) {
-                action_interrupt_get_report(&driver_obj, bdg);
+            if (driver_obj.actions & ACTION_TRANSFER_INTR_GET_REPORT) {
+                action_interrupt_get_report(&driver_obj);
             }
             if (driver_obj.actions & ACTION_CLOSE_DEV) {
                 aciton_close_dev(&driver_obj);
@@ -409,6 +411,7 @@ static void usb_class_driver_task(void *pvParameters)
     } // end main loop
 
     ESP_LOGI(TAG_CLASS, "Deregistering Client");
+    bdg->driver_ptr = NULL;
     ESP_ERROR_CHECK(usb_host_client_deregister(driver_obj.client_hdl));
 
     vTaskSuspend(NULL);
